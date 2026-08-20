@@ -1,0 +1,126 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: rails-service
+  title: Ruby on Rails Service
+  description: Scaffolds a new Ruby on Rails application, registers it in the Backstage catalog, and sets up CI-ready structure.
+  tags:
+    - rails
+    - ruby
+    - backend
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Basic Information
+      required:
+        - name
+        - description
+        - owner
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Unique name of the new Rails service (used as repo name)
+          pattern: '^[a-z0-9-]+$'
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: A short description of the service
+        owner:
+          title: Owner
+          type: string
+          description: Owning team or user (Backstage entity ref)
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+
+    - title: Rails Configuration
+      required:
+        - rubyVersion
+        - railsVersion
+      properties:
+        rubyVersion:
+          title: Ruby Version
+          type: string
+          default: "3.3.5"
+          enum:
+            - "3.3.5"
+            - "3.2.4"
+            - "3.1.6"
+        railsVersion:
+          title: Rails Version
+          type: string
+          default: "7.2"
+          enum:
+            - "7.2"
+            - "7.1"
+            - "7.0"
+        apiOnly:
+          title: API-only application
+          type: boolean
+          default: true
+          description: Generate a lightweight API-only Rails app (no views/assets)
+        database:
+          title: Database
+          type: string
+          default: postgresql
+          enum:
+            - postgresql
+            - mysql
+            - sqlite3
+
+    - title: Repository Location
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          rubyVersion: ${{ parameters.rubyVersion }}
+          railsVersion: ${{ parameters.railsVersion }}
+          apiOnly: ${{ parameters.apiOnly }}
+          database: ${{ parameters.database }}
+          destination: ${{ parameters.repoUrl | parseRepoUrl }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        description: This is ${{ parameters.name }}
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}

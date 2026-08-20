@@ -1,0 +1,12 @@
+/log/*
+/tmp/*
+!/log/.keep
+!/tmp/.keep
+/db/*.sqlite3
+/db/*.sqlite3-journal
+/public/assets
+.byebug_history
+/config/master.key
+/.bundle
+/vendor/bundle
+.env
